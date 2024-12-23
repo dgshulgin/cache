@@ -4,32 +4,39 @@ import "testing"
 import "fmt"
 //import "github.com/stretchr/testify/assert"
 import "sync"
+import "context"
+import "time"
 
 func Benchmark_Cache_Set(b *testing.B) {
-	cache := NewMapCache()
+
+    timeout := time.Millisecond
+    ctx,_ := context.WithTimeout(context.Background(), timeout)
+
+    cache := NewMapCache()
 	for i:=0;i<b.N;i++ {
 		key := fmt.Sprintf("key#%d",i)
 		val := fmt.Sprintf("%d",i)
-		cache.Set(key, val)
+		cache.Set(ctx, key, val)
 	}
 
 }
 
 func Benchmark_CacheConcurrent(b *testing.B) {
-	wg:= sync.WaitGroup{}
-	cache := NewMapCache()
+    
+    timeout := time.Millisecond
+    ctx,_ := context.WithTimeout(context.Background(), timeout)
+
+    wg:= sync.WaitGroup{}
+    cache := NewMapCache()
   for i:=0; i< b.N;i++ {
+	    key := fmt.Sprintf("key#%d",i)
+	    val := fmt.Sprintf("%d",i)
 	
-
-	key := fmt.Sprintf("key#%d",i)
-	val := fmt.Sprintf("%d",i)
-	
-	wg.Add(1)    
-	go func() {
-		cache.Set(key,val)
-		wg.Done()
-	}()
-
+    	wg.Add(1)    
+    	go func() {
+		    cache.Set(ctx, key,val)
+    		wg.Done()
+    	}()
   }
 
   wg.Wait()

@@ -2,13 +2,18 @@ package cache
 
 import "errors"
 import "sync"
+import "context"
 
-var ErrNotFound = errors.New("value not found")
+var (
+    ErrNotFound = errors.New("value not found")
+    ErrTimeout = errors.New("operation timeout")
+    ErrOperationFailed = errors.New("operation failed")
+)
 
 type Cache interface {
-	Set(key, value string) error
-	Get(key string) (string, error)
-	Delete(key string) error
+	Set(ctx context.Context, key, value string) error
+	Get(ctx context.Context, key string) (string, error)
+	Delete(ctx context.Context, key string) error
 }
 
 
@@ -18,38 +23,81 @@ type MapCache struct {
 	mut sync.Mutex
 }
 
-func NewMapCache() MapCache {
-	return MapCache{
+func NewMapCache() Cache { //MapCache {
+	return &MapCache{
 		mc: make(MapCacheStorage),
 	}
 }
 
-
-func (c *MapCache) Set(key string, value string) error {
-	c.mut.Lock()
-	c.mc[key] = value
-	c.mut.Unlock()
-	return nil
+func (c *MapCache) Set(ctx context.Context, key, value string) error {
+    ch := make(chan struct{})
+    go func(){
+        //set
+        defer close(ch)
+        c.mut.Lock()
+        c.mc[key] = value
+        c.mut.Unlock()
+        ch <- struct{}{}
+    }()
+    //check timeout or set
+    select {
+        case <-ctx.Done():
+            return ErrTimeout
+        case _, ok := <-ch:
+            if ok {
+                return nil
+            }
+            return ErrOperationFailed
+    }
 }
 
-func (c MapCache) Get(key string) (string, error) {
-	c.mut.Lock()
-	defer c.mut.Unlock()
+func (c MapCache) Get(ctx context.Context, key string) (string, error) {
+    ch := make(chan string)
+    go func(){
+        defer close(ch)
 
-	if _, exists := c.mc[key]; exists {
-		return c.mc[key], nil
-	}
-	return "", ErrNotFound
+        c.mut.Lock()
+        defer c.mut.Unlock()
+
+        if _, exists := c.mc[key]; exists {
+            ch <- c.mc[key]
+        }
+    }()
+
+    select {
+       case <-ctx.Done():
+           return "", ErrTimeout
+       case v, ok := <- ch:
+            if ok {
+                return v, nil
+            }
+            return "", ErrNotFound
+    }
 }
 
-func (c *MapCache) Delete(key string) error {
-	c.mut.Lock()
-	defer c.mut.Unlock()
+func (c MapCache) Delete(ctx context.Context, key string) error {
+    ch := make(chan struct{})
+    go func(){
+        defer close(ch)
+        
+        c.mut.Lock()
+        defer c.mut.Unlock()
 
-	if _, exists := c.mc[key]; exists {
-		delete(c.mc, key)
-	}
-	return ErrNotFound
+        if _, exists := c.mc[key]; exists {
+            delete(c.mc, key)
+        }
+        ch <- struct{}{}
+    }()
+
+    select {
+        case <-ctx.Done():
+            return ErrTimeout
+        case _, ok := <-ch:
+            if ok {
+                return nil
+            }
+            return ErrNotFound
+    }
 }
 
 
