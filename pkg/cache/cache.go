@@ -1,25 +1,7 @@
-package main
+package cache
 
 import "errors"
-//import "fmt"
 import "sync"
-
-func main() {
-	/*
-	mc := make(MapCache, 2)
-	mc.Set("first","1")
-	v, err := mc.Get("first")
-	fmt.Printf("key=%s, val=%s\n", "first", v)
-	
-	mc.Set("second", "2")
-	v, err = mc.Get("second")
-	fmt.Printf("key=%s, val=%s\n", "second", v)
-
-	mc.Delete("first")
-	v, err = mc.Get("first")
-	fmt.Printf("err=%v\n", err)
-	*/
-}
 
 var ErrNotFound = errors.New("value not found")
 

@@ -1,8 +1,9 @@
-package main
+package cache
 
 import "testing"
 import "fmt"
 import "github.com/stretchr/testify/assert"
+//import "github.com/dgshulgin/cache/pkg/cache"
 
 func Test_Cache(t *testing.T) {
 
